@@ -1,0 +1,19 @@
+@(feed: atom.AtomFeed)
+
+
+@main("RSSink") {
+    <h1>@feed.title</h1>
+    @feed.subtitle
+
+    @feed.entries.map { entry =>
+        <div>
+            <h2><a href="@entry.url">@entry.title</a></h2>
+            @entry.updated
+            <div>
+                @Html(entry.summary)
+            </div>
+            <a href="@entry.url">@entry.url</a>
+        </div>
+    }
+
+}
