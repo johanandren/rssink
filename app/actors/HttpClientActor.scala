@@ -2,26 +2,60 @@ package actors
 
 import scala.xml._
 import play.api._
-import akka.actor.Actor
+import akka.actor._
+import akka.actor.SupervisorStrategy._
+import http.Status._
 import play.api.libs.ws.WS
 import java.util.concurrent.TimeUnit._
+import java.util.concurrent.TimeoutException
+import actors.TimeoutException
 
-class HttpClientActor extends Actor {
+/**
+ * Accepts the FetchFeed message to fetch the XML of a feed, will return a FeedFetched or
+ * a failure to the sender.
+ */
+class HttpClientActor
+  extends Actor
+  with PlayActorLogging {
 
-  val log = Logger("actor.http-client")
+  val worker = context.actorOf(Props[HttpWorker])
+
+  def receive = {
+    case message: FetchFeed => worker forward message
+    case x => log.warn("Unknown message: " + x)
+  }
+
+  override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 3) {
+    case _ :TimeoutException => Resume
+    case x => {
+      log.warn("Exception contacting http server", x)
+      Resume
+    }
+  }
+
+}
+
+class HttpWorker
+  extends Actor
+  with PlayActorLogging {
 
   def receive = {
     case FetchFeed(feed) => {
       log.debug("Fetching feed: " + feed)
-      val fetchSender = sender
 
-      WS.url(feed.url).get().map { response =>
-        val xml = XML.loadString(response.body)
-        log.debug("Got feed contents, sending back to " + sender)
-        fetchSender ! FeedFetched(xml)
-      }.orTimeout("Timeout getting feed " + feed, 20, SECONDS)
+      val result = WS.url(feed.url).get().map { response =>
+        response.status match {
+          case OK => response.xml
+
+          case code => throw new UnexpectedResponseCodeException("Unexpected HTTP response code: " + code)
+        }
+      }.orTimeout(new TimeoutException("Timeout getting feed " + feed), 20, SECONDS)
+       .await.get
+
+      result.fold(
+        sender ! FeedFetched(_),
+        throw _
+      )
     }
-
-    case x => log.warn("Unknown message: " + x)
   }
 }

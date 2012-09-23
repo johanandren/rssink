@@ -4,6 +4,7 @@ import models._
 import xml.NodeSeq
 import java.text.SimpleDateFormat
 import utils.DateParser
+import java.util.Date
 
 object AtomXmlFormat extends XmlReader[AtomFeed] with XmlWriter[AtomFeed] {
 
@@ -17,9 +18,7 @@ object AtomXmlFormat extends XmlReader[AtomFeed] with XmlWriter[AtomFeed] {
 
     def dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ssZ")
 
-    implicit def text2date(text: String) = dateParser(text) getOrElse {
-      throw new RuntimeException("Unparseable date string '" + text + "'")
-    }
+    implicit def text2date(text: String): Option[Date] = dateParser(text)
   }
 
   // parsing and rendering
@@ -33,7 +32,8 @@ object AtomXmlFormat extends XmlReader[AtomFeed] with XmlWriter[AtomFeed] {
             id = Id((feedNode \ "id").text),
             title = (feedNode \ "title").text,
             subtitle = (feedNode \ "subtitle").text,
-            updated = Some((feedNode \ "updated").text),
+            fetched = (feedNode \ "fetched").text,
+            updated = (feedNode \ "updated").text,
             feedUrl = "", // href link rel=self
             siteUrl = "", // href link rel!=self
             entries = (feedNode \ "entry").map {
@@ -42,15 +42,15 @@ object AtomXmlFormat extends XmlReader[AtomFeed] with XmlWriter[AtomFeed] {
                   id = Id((feedNode \ "id").text),
                   title = (feedNode \ "title").text,
                   url = (feedNode \ "link").text,
-                  updated = (feedNode \ "updated").text,
+                  updated = dateParser((feedNode \ "updated").text).get,
                   summary = (feedNode \ "summary").text,
-                  author = (feedNode \ "author").map {
+                  author = (feedNode \ "author").headOption.map {
                     authorNode =>
-                      Some(Author(
+                      Author(
                         name = (authorNode \ "name").text,
                         email = (authorNode \ "email").text
-                      ))
-                  }.head
+                      )
+                  }
                 )
             }
           )
@@ -77,6 +77,9 @@ object AtomXmlFormat extends XmlReader[AtomFeed] with XmlWriter[AtomFeed] {
       </id>
       {if(feed.updated.isDefined){
         <updated>{dateFormat.format(feed.updated.get)}</updated>
+      }}
+      {if(feed.fetched.isDefined){
+        <fetched>{dateFormat.format(feed.updated.get)}</fetched>
       }}
       { feed.entries.map { entry =>
         <entry>

@@ -1,38 +1,40 @@
 package controllers
 
 import play.api.mvc._
-import actors._
 import akka.pattern._
 import play.api.libs.concurrent._
 import akka.util.Timeout
 import akka.util.duration._
+import akka.pattern.ask
 import play.api.Play.current
+import play.api.libs.concurrent.Akka.system
 import models.atom.{AtomXmlFormat, AtomFeed}
+import akka.actor._
+import actors.{Feed, GetFeed}
 
 object Feeds extends Controller {
 
-  private def fetchFeed(feedKey: String): Promise[Either[String, AtomFeed]] = {
+  private def fetchFeed(user: String, feedKey: String): Promise[Either[String, AtomFeed]] = {
     implicit val timeout = Timeout(10 seconds)
-    ActorConfig.aggregateActors.get(feedKey).map { actor =>
-      actor.ask(GetFeed).mapTo[Feed].asPromise.map { reply =>
-        Right[String, AtomFeed](reply.feed)
-      }
-    } getOrElse {
-      Akka.future(Left[String, AtomFeed]("Unknown feed key: " + feedKey))
+    val actorPath = "/user/" + user + "/" + feedKey
+    val future = (system.actorFor(actorPath) ask GetFeed)
+
+    future.mapTo[Feed].asPromise.map { reply =>
+       Right[String, AtomFeed](reply.feed)
     }
   }
 
-  def feed(feedKey: String) = Action {
+  def feed(user: String, feedKey: String) = Action {
     AsyncResult {
-      fetchFeed(feedKey).map(_.fold(
+      fetchFeed(user, feedKey).map(_.fold(
         errorMsg => Ok(errorMsg),
         feed => Ok(views.html.feed(feed))))
     }
   }
 
-  def rssFeed(feedKey: String) = Action {
+  def rssFeed(user: String, feedKey: String) = Action {
     AsyncResult {
-      fetchFeed(feedKey).map(_.fold(
+      fetchFeed(user, feedKey).map(_.fold(
         errorMsg => Ok(errorMsg),
         feed => Ok(AtomXmlFormat.write(feed))))
     }

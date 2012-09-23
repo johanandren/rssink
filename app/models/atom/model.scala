@@ -9,7 +9,15 @@ object Atom extends FeedType
 case class Id(id: String)
 
 /** works both as a model for external feeds and aggregations */
-case class AtomFeed(id: Id, title: String, subtitle: String, updated: Option[Date], feedUrl: String, siteUrl: String, entries: Seq[Entry]) {
+case class AtomFeed(
+    id: Id,
+    title: String,
+    subtitle: String,
+    fetched: Option[Date],
+    updated: Option[Date],
+    feedUrl: String,
+    siteUrl: String,
+    entries: Seq[Entry]) {
 
   /**create a new updated feed with the combined entries of this and a newer feed instance */
   def combine(newFeed: AtomFeed): AtomFeed = {

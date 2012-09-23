@@ -4,8 +4,8 @@
 
 # Home page
 GET     /                           controllers.Application.index
-GET     /feed/:name                 controllers.Feeds.feed(name: String)
-GET     /rss/feed/:name             controllers.Feeds.rssFeed(name: String)
+GET     /feeds/:user/:name          controllers.Feeds.feed(user: String, name: String)
+GET     /rss/feeds/:user/:name      controllers.Feeds.rssFeed(user: String, name: String)
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.at(path="/public", file)

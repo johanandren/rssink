@@ -8,11 +8,10 @@ import play.api.Logger
   */
 class AggregateActor(private val name: String)
   extends Actor
-  with PersistedFeed {
+  with PersistedFeed
+  with PlayActorLogging {
 
   def feedName = "aggregate-" + name.hashCode
-
-  val log = Logger("actor.aggregate")
 
   private var feed: Option[AtomFeed] = None
 
@@ -35,6 +34,7 @@ class AggregateActor(private val name: String)
         id = Id(feedName.hashCode.toString),
         title = feedName,
         subtitle = "Aggregate",
+        fetched = None,
         updated = None,
         feedUrl = "TODO",
         siteUrl = "TODO",

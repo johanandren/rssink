@@ -10,6 +10,7 @@ object RssAtomAdapter {
       id = Id(""),
       title = rss.title,
       subtitle = "",
+      fetched = None,
       updated = Some(rss.lastBuildDate),
       feedUrl = "",
       siteUrl = rss.siteUrl,
