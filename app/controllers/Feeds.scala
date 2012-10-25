@@ -9,13 +9,15 @@ import akka.pattern.ask
 import play.api.Play.current
 import play.api.libs.concurrent.Akka.system
 import models.atom.{AtomXmlFormat, AtomFeed}
-import akka.actor._
-import actors.{Feed, GetFeed}
 
 object Feeds extends Controller {
 
+  import actors.AggregateActor._
+
+  implicit val timeout = Timeout(10 seconds)
+
   private def fetchFeed(user: String, feedKey: String): Promise[Either[String, AtomFeed]] = {
-    implicit val timeout = Timeout(10 seconds)
+
     val actorPath = "/user/" + user + "/" + feedKey
     val future = (system.actorFor(actorPath) ask GetFeed)
 

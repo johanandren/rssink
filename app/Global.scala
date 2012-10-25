@@ -1,4 +1,4 @@
-import actors.{TearDownAllConfigurations, SetupFeeds, FeedConfigurationActor}
+import actors.FeedConfigurationActor
 import akka.actor.{Props, ActorRef}
 import models.FeedsConfiguration
 import play.api.libs.concurrent.Akka
@@ -8,9 +8,11 @@ import play.api.{Application, GlobalSettings}
 
 object Global extends GlobalSettings {
 
+  import FeedConfigurationActor._
+
   val feeds = Map(
     "programming" -> List(
-      Rss -> "https://markatta.com/johan/blog/?feed=rss2",
+      // Rss -> "https://markatta.com/johan/blog/?feed=rss2",
       Rss -> "http://feeds.macrumors.com/MacRumors-All",
       Atom -> "http://www.planetscala.com/atom.xml",
       Atom -> "http://planet.jboss.org/xml/all?type=atom"
@@ -21,7 +23,7 @@ object Global extends GlobalSettings {
       Rss -> "http://veganmage.se/feed/"
     ),
     "friends" -> List(
-      Rss -> "http://markatta.com/mary/funrun/?feed=rss2",
+     // Rss -> "http://markatta.com/mary/funrun/?feed=rss2",
       Rss -> "http://www.sjuktgalen.se/feed/"
     )
   )

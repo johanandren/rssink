@@ -4,19 +4,6 @@ import akka.actor.{ActorRef, Actor}
 import models.atom.AtomFeed
 import FilterActor._
 
-class FilterActor(destination: ActorRef, filters: Seq[Filter]) extends Actor {
-  def receive = {
-
-    case FeedUpdate(descriptor, feed) => {
-
-      val filtered = filters.foldLeft(feed)((feed, filter) => filter(feed))
-
-      destination ! FeedUpdate(descriptor, filtered)
-    }
-
-  }
-}
-
 object FilterActor {
 
   type Filter = AtomFeed => AtomFeed
@@ -42,3 +29,20 @@ object FilterActor {
   }
 
 }
+
+
+class FilterActor(destination: ActorRef, filters: Seq[Filter]) extends Actor {
+
+  import FeedActor._
+
+  def receive = {
+
+    case FeedUpdated(descriptor, feed) =>
+
+      val filtered = filters.foldLeft(feed)((feed, filter) => filter(feed))
+
+      destination ! FeedUpdated(descriptor, filtered)
+
+  }
+}
+

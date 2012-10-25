@@ -7,25 +7,21 @@ import scala.Seq
 import akka.routing.RoundRobinRouter
 import models.FeedsConfiguration
 
+object FeedConfigurationActor {
+  // messages
+  case class SetupFeeds(feeds: FeedsConfiguration)
+  case class TearDownFeeds(feeds: FeedsConfiguration)
+  case object TearDownAllConfigurations
+}
+
 /**
  * Manages/supervises each set of feed actors
  */
-class FeedConfigurationActor extends Actor with PlayActorLogging {
+class FeedConfigurationActor extends Actor with ActorLogging {
 
-  val httpClientPoolSize = 4
-
-  var httpClientRouter: Option[ActorRef] = None
+  import FeedConfigurationActor._
 
   var configurations: Map[FeedsConfiguration, ConfigurationActors] = Map()
-
-
-  override def preStart() {
-    // TODO move http client router out of here?
-    // http fetch actors
-    httpClientRouter = Some(context.actorOf(Props(new HttpClientActor).withRouter(
-      RoundRobinRouter(httpClientPoolSize))
-    ))
-  }
 
   def receive = {
     case SetupFeeds(configuration) => {
@@ -51,6 +47,8 @@ class FeedConfigurationActor extends Actor with PlayActorLogging {
 
     val feeds = configuration.feeds
 
+    val httpClient = context.actorOf(Props[HttpClientActor], "HttpClient")
+
     // one aggregate per category keyed with the name from the configuration
     val aggregateActors: Map[String, ActorRef] = feeds.keys.map { name =>
       (name, context.actorOf(Props(new AggregateActor(name)), name))
@@ -66,7 +64,7 @@ class FeedConfigurationActor extends Actor with PlayActorLogging {
           val filter = context.actorOf(Props(new FilterActor(aggregateForKey, Seq(removeImages, removeIframes, removeObjects))))
 
 
-          context.actorOf(Props(FeedActor(url, feedType, httpClientRouter.get, filter)), "feed-" + url.hashCode)
+          context.actorOf(Props(FeedActor(url, feedType, httpClient, filter)), "feed-" + url.hashCode)
         }
       }(breakOut)
 

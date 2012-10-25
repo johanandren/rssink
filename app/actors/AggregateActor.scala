@@ -1,30 +1,36 @@
 package actors
 
-import akka.actor.{PoisonPill, Actor}
+import akka.actor.{ActorLogging, Actor}
 import models.atom.{Id, AtomFeed}
-import play.api.Logger
+
+object AggregateActor {
+  // messages
+  case object GetFeed
+  case class Feed(feed: AtomFeed)
+
+}
 
 /** Holds one aggregate of multiple feeds
   */
-class AggregateActor(private val name: String)
-  extends Actor
-  with PersistedFeed
-  with PlayActorLogging {
+class AggregateActor(name: String) extends Actor with PersistedFeed with ActorLogging {
+
+  import AggregateActor._
+  import FeedActor._
 
   def feedName = "aggregate-" + name.hashCode
 
   private var feed: Option[AtomFeed] = None
 
   def receive = {
-    case FeedUpdate(updatedFeed, atom) => {
+    case FeedUpdated(updatedFeed, atom) => {
       log.debug("Got update from feed " + updatedFeed)
       feed = feed.map(_.aggregate(atom))
-      log.debug("Aggregate updated")
+      log.debug("Aggregate updated (" + feed.map(_.entries.size).getOrElse(0) + " entries)")
     }
 
     case GetFeed => sender ! Feed(feed.get)
 
-    case x => log.warn("Unknown message: " + x)
+    case x => log.warning("Unknown message: " + x)
   }
 
   override def preStart() {

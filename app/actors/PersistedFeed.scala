@@ -5,8 +5,9 @@ import scalax.file._
 import play.api.Play.current
 import xml.{Node, XML}
 import scalax.io.Codec
+import akka.actor.ActorLogging
 
-trait PersistedFeed { this: PlayActorLogging =>
+trait PersistedFeed { this: ActorLogging =>
 
   def feedName: String
 
