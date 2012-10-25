@@ -7,7 +7,8 @@ object AggregateActor {
   // messages
   case object GetFeed
   case class Feed(feed: AtomFeed)
-
+  case object GetSummary
+  case class Summary(title: String, subtitle: String)
 }
 
 /** Holds one aggregate of multiple feeds, publishes updates to those feeds to listeners */
@@ -35,8 +36,10 @@ class AggregateActor(name: String) extends Actor with PersistedFeed with ActorLo
       for (entry <- updatedEntries) publish(entry)
     }
 
-    case GetFeed => sender ! Feed(feed.get)
-    
+    case GetFeed => feed foreach (sender ! Feed(_))
+
+    case GetSummary => feed foreach (f => sender ! Summary(f.title, f.subtitle))
+
   }
 
   override def preStart() {

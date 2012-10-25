@@ -35,11 +35,14 @@ object Feeds extends Controller {
     }
   }
 
-  def feed(user: String, feedKey: String) = Action {
+  def feed(user: String, feedKey: String) = Action { implicit request =>
     AsyncResult {
-      fetchFeed(user, feedKey).map(_.fold(
-        errorMsg => Ok(errorMsg),
-        feed => Ok(views.html.feed(feed))))
+      val actor = actorFor(user, feedKey)
+
+      (actor ? GetSummary).asPromise.map { case Summary(title, subtitle) =>
+         Ok(views.html.feed(title, subtitle, user, feedKey))
+      }
+
     }
   }
 

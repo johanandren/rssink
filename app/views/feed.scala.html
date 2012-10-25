@@ -1,19 +1,41 @@
-@(feed: atom.AtomFeed)
+@(title: String, subtitle: String, user: String, feedKey: String)(implicit request: RequestHeader)
 
 
 @main("RSSink") {
-    <h1>@feed.title</h1>
-    @feed.subtitle
 
-    @feed.entries.map { entry =>
-        <div>
-            <h2><a href="@entry.url">@entry.title</a></h2>
-            @entry.updated
-            <div>
-                @Html(entry.summary)
-            </div>
-            <a href="@entry.url">@entry.url</a>
-        </div>
-    }
+  <h1>@title</h1>
+  @subtitle
+
+  <div data-bind="foreach: messages">
+      <div class="message">
+        <h2 data-bind="text: title"></h2>
+        <div data-bind="html: summary"></div>
+        <a href="#" data-bind="attr: { href: url }">Entire article</a>
+      </div>
+  </div>
+
+  <script language="javascript" type="text/javascript">
+
+    var messages = ko.observableArray();
+
+    var viewModel = {
+      messages: messages
+    };
+
+    ko.applyBindings(viewModel);
+
+    var WS = window['MozWebSocket'] ? MozWebSocket : WebSocket;
+    var feedSocket = new WS("@routes.Feeds.feedStream(user, feedKey).webSocketURL()");
+
+    feedSocket.onmessage = function(event) {
+      var entry = JSON.parse(event.data);
+
+      console.log(event);
+
+      // todo create entry block from template
+      viewModel.messages.push(entry);
+
+    };
+  </script>
 
 }
