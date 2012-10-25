@@ -10,9 +10,8 @@ object AggregateActor {
 
 }
 
-/** Holds one aggregate of multiple feeds
-  */
-class AggregateActor(name: String) extends Actor with PersistedFeed with ActorLogging {
+/** Holds one aggregate of multiple feeds, publishes updates to those feeds to listeners */
+class AggregateActor(name: String) extends Actor with PersistedFeed with ActorLogging with EntryEventSource {
 
   import AggregateActor._
   import FeedActor._
@@ -21,16 +20,23 @@ class AggregateActor(name: String) extends Actor with PersistedFeed with ActorLo
 
   private var feed: Option[AtomFeed] = None
 
-  def receive = {
+  def receive = aggregateReceive orElse entryEventSourceReceive
+
+  def aggregateReceive: Receive = {
+
     case FeedUpdated(updatedFeed, atom) => {
       log.debug("Got update from feed " + updatedFeed)
       feed = feed.map(_.aggregate(atom))
       log.debug("Aggregate updated (" + feed.map(_.entries.size).getOrElse(0) + " entries)")
+
+      val updatedEntries = feed.map(_.entries).getOrElse(Seq())
+
+      // publish updates to all listeners
+      for (entry <- updatedEntries) publish(entry)
     }
 
     case GetFeed => sender ! Feed(feed.get)
-
-    case x => log.warning("Unknown message: " + x)
+    
   }
 
   override def preStart() {

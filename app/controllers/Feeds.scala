@@ -9,19 +9,28 @@ import akka.pattern.ask
 import play.api.Play.current
 import play.api.libs.concurrent.Akka.system
 import models.atom.{AtomXmlFormat, AtomFeed}
+import play.api.libs.iteratee.{Enumerator, Iteratee}
+import akka.actor.ActorRef
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json._
 
 object Feeds extends Controller {
 
   import actors.AggregateActor._
+  import actors.EntryEventSource._
+  import JsonFormats._
 
   implicit val timeout = Timeout(10 seconds)
 
-  private def fetchFeed(user: String, feedKey: String): Promise[Either[String, AtomFeed]] = {
-
+  def actorFor(user: String, feedKey: String): ActorRef = {
     val actorPath = "/user/" + user + "/" + feedKey
-    val future = (system.actorFor(actorPath) ask GetFeed)
+    system.actorFor(actorPath)
+  }
 
-    future.mapTo[Feed].asPromise.map { reply =>
+  // async fetch of feed
+  private def fetchFeed(user: String, feedKey: String): Promise[Either[String, AtomFeed]] = {
+    val actor = actorFor(user, feedKey)
+    (actor ? GetFeed).mapTo[Feed].asPromise.map { reply =>
        Right[String, AtomFeed](reply.feed)
     }
   }
@@ -39,6 +48,22 @@ object Feeds extends Controller {
       fetchFeed(user, feedKey).map(_.fold(
         errorMsg => Ok(errorMsg),
         feed => Ok(AtomXmlFormat.write(feed))))
+    }
+  }
+
+  // websocket stream of log items
+  def feedStream(user: String, feedKey: String) = WebSocket.async[JsValue] { request =>
+    val actor = actorFor(user, feedKey)
+
+    (actor ? RegisterListener).asPromise.map {
+      case ListenerRegistered(entryEnumerator) =>
+        val in = Iteratee.foreach[JsValue](println).mapDone { _ =>
+          actor ! UnregisterListener(entryEnumerator)
+        }
+
+        val out = entryEnumerator.map(entry => toJson(entry))
+
+        (in, out)
     }
   }
 
