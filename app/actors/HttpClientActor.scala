@@ -42,9 +42,8 @@ class HttpClientActor extends Actor with ActorLogging {
 
   override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 3) {
 
-    case _ :HttpClientActor.TimeoutException => Resume
-
-    case _: SSLHandshakeException => Restart
+    case _:HttpClientActor.TimeoutException => Resume
+    case _:SSLHandshakeException => Resume
 
     case x =>
       log.warning("Exception contacting http server", x)

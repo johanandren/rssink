@@ -2,6 +2,7 @@ package actors
 
 import akka.actor.{ActorLogging, Actor}
 import models.atom.{Id, AtomFeed}
+import actors.EntryEventSource.ListenerRegistered
 
 object AggregateActor {
   // messages
@@ -19,47 +20,41 @@ class AggregateActor(name: String) extends Actor with PersistedFeed with ActorLo
 
   def feedName = "aggregate-" + name.hashCode
 
-  private var feed: Option[AtomFeed] = None
+  private var feed: AtomFeed = AtomFeed(Id(feedName), name, "Aggregate", None, None, "", "", Seq())
 
   def receive = aggregateReceive orElse entryEventSourceReceive
 
   def aggregateReceive: Receive = {
 
-    case FeedUpdated(updatedFeed, atom) => {
+    case FeedUpdated(updatedFeed, atom) =>
       log.debug("Got update from feed " + updatedFeed)
-      feed = feed.map(_.aggregate(atom))
-      log.debug("Aggregate updated (" + feed.map(_.entries.size).getOrElse(0) + " entries)")
+      val originalEntries = feed.entries.toSet
+      feed = feed.aggregate(atom)
+      log.debug("Aggregate updated (" + feed.entries.size + " entries)")
 
-      val updatedEntries = feed.map(_.entries).getOrElse(Seq())
+      val updatedEntries = feed.entries.filterNot(originalEntries(_))
 
       // publish updates to all listeners
-      for (entry <- updatedEntries) publish(entry)
-    }
+      for (entry <- updatedEntries) publishToAll(entry)
 
-    case GetFeed => feed foreach (sender ! Feed(_))
+    case ListenerRegistered(listener) =>
+      log.debug("Sending all entries " + feed.entries.size + " to new listener")
+      // publish all entries at registration
+      for (entry <- feed.entries) publish(entry, listener)
 
-    case GetSummary => feed foreach (f => sender ! Summary(f.title, f.subtitle))
+    case GetFeed => sender ! Feed(feed)
+
+    case GetSummary => sender ! Summary(feed.title, feed.subtitle)
 
   }
 
   override def preStart() {
-    // load or create
-    feed = loadFeed.orElse {
-      Some(AtomFeed(
-        id = Id(feedName.hashCode.toString),
-        title = feedName,
-        subtitle = "Aggregate",
-        fetched = None,
-        updated = None,
-        feedUrl = "TODO",
-        siteUrl = "TODO",
-        entries = Seq()))
-
-    }
+    // load or keep existing
+    loadFeed.foreach(feed = _)
   }
 
   override def postStop() {
-    storeFeed(feed)
+    storeFeed(Some(feed))
   }
 
 }

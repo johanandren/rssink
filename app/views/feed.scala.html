@@ -3,12 +3,13 @@
 
 @main("RSSink") {
 
-  <h1>@title</h1>
-  @subtitle
+  <h1>@title <small>@subtitle</small></h1>
+
 
   <div data-bind="foreach: messages">
       <div class="message">
-        <h2 data-bind="text: title"></h2>
+        <h3 data-bind="text: title"></h3>
+        <span data-bind="text: updated"></span>
         <div data-bind="html: summary"></div>
         <a href="#" data-bind="attr: { href: url }">Entire article</a>
       </div>
@@ -30,9 +31,9 @@
     feedSocket.onmessage = function(event) {
       var entry = JSON.parse(event.data);
 
-      console.log(event);
+      // console.log(event);
 
-      // todo create entry block from template
+      // add entry to page
       viewModel.messages.push(entry);
 
     };

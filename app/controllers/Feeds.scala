@@ -7,12 +7,12 @@ import akka.util.Timeout
 import akka.util.duration._
 import akka.pattern.ask
 import play.api.Play.current
-import play.api.libs.concurrent.Akka.system
 import models.atom.{AtomXmlFormat, AtomFeed}
 import play.api.libs.iteratee.{Enumerator, Iteratee}
 import akka.actor.ActorRef
 import play.api.libs.json.JsValue
 import play.api.libs.json.Json._
+import actors.FeedActorSystem
 
 object Feeds extends Controller {
 
@@ -21,6 +21,8 @@ object Feeds extends Controller {
   import JsonFormats._
 
   implicit val timeout = Timeout(10 seconds)
+
+  def system = FeedActorSystem.actorSystem
 
   def actorFor(user: String, feedKey: String): ActorRef = {
     val actorPath = "/user/" + user + "/" + feedKey
